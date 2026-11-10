@@ -19,6 +19,7 @@ class RectifierApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.blue,
         ),
+        fontFamily: 'Roboto',
         useMaterial3: true,
       ),
 

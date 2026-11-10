@@ -20,8 +20,7 @@ class ParameterControls extends StatelessWidget {
         _buildSlider(
           label: 'Input Voltage',
           value: parameters.voltage,
-          displayValue:
-              '${parameters.voltage.toStringAsFixed(1)} V',
+          displayValue: '${parameters.voltage.toStringAsFixed(1)} V',
           min: 1,
           max: 20,
           divisions: 190,
@@ -31,13 +30,41 @@ class ParameterControls extends StatelessWidget {
           },
         ),
 
+        Material(
+          color: Colors.transparent,
+          child: SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Capacitor filter'),
+            value: parameters.capacitorFilterEnabled,
+            onChanged: (value) {
+              parameters.capacitorFilterEnabled = value;
+              onChanged();
+            },
+          ),
+        ),
+        if (parameters.capacitorFilterEnabled) ...[
+          _buildSlider(
+            label: 'Capacitance',
+            value: parameters.capacitance * 1e6,
+            displayValue:
+                '${(parameters.capacitance * 1e6).toStringAsFixed(0)} µF',
+            min: 10,
+            max: 1000,
+            divisions: 99,
+            onChanged: (value) {
+              parameters.capacitance = value * 1e-6;
+              onChanged();
+            },
+          ),
+          const SizedBox(height: 20),
+        ],
+
         const SizedBox(height: 20),
 
         _buildSlider(
           label: 'Frequency',
           value: parameters.frequency,
-          displayValue:
-              '${parameters.frequency.toStringAsFixed(1)} Hz',
+          displayValue: '${parameters.frequency.toStringAsFixed(1)} Hz',
           min: 1,
           max: 1000,
           divisions: 999,
@@ -52,8 +79,7 @@ class ParameterControls extends StatelessWidget {
         _buildSlider(
           label: 'Load Resistance',
           value: parameters.resistance,
-          displayValue:
-              '${parameters.resistance.toStringAsFixed(0)} Ω',
+          displayValue: '${parameters.resistance.toStringAsFixed(0)} Ω',
           min: 100,
           max: 10000,
           divisions: 99,
@@ -68,8 +94,7 @@ class ParameterControls extends StatelessWidget {
         _buildSlider(
           label: 'Diode Forward Voltage',
           value: parameters.diodeVoltage,
-          displayValue:
-              '${parameters.diodeVoltage.toStringAsFixed(2)} V',
+          displayValue: '${parameters.diodeVoltage.toStringAsFixed(2)} V',
           min: 0,
           max: 1,
           divisions: 100,
@@ -127,14 +152,17 @@ class ParameterControls extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF374151),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF374151),
+                ),
               ),
             ),
+            const SizedBox(width: 8),
             Text(
               displayValue,
               style: const TextStyle(

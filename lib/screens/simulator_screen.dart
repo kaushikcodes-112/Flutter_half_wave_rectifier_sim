@@ -4,6 +4,9 @@ import '../models/circuit_parameters.dart';
 import '../simulation/rectifier_simulator.dart';
 import '../simulation/waveform_measurements.dart';
 import '../widgets/circuit_diagram.dart';
+import '../widgets/experiment_guide.dart';
+import '../widgets/formula_reference.dart';
+import '../widgets/observation_table.dart';
 import '../widgets/parameter_controls.dart';
 import '../widgets/waveform_graph.dart';
 
@@ -19,6 +22,7 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
   late RectifierSimulator simulator;
   List<Offset> inputWaveform = [];
   List<Offset> outputWaveform = [];
+  RectifierSimulation? _simulation;
 
   @override
   void initState() {
@@ -28,8 +32,9 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
   }
 
   void _runSimulation() {
-    inputWaveform = simulator.generateInputWaveform();
-    outputWaveform = simulator.generateOutputWaveform();
+    _simulation = simulator.simulate();
+    inputWaveform = _simulation!.input;
+    outputWaveform = _simulation!.output;
   }
 
   void _parametersChanged() {
@@ -37,57 +42,55 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
   }
 
   Widget _buildObjective() => _buildSection(
-        title: 'Objective',
-        child: const Text(
-          'Observe how a diode converts an AC input into a pulsating DC output, '
-          'and compare the input and output waveform measurements.',
-          style: TextStyle(height: 1.5, color: Color(0xFF4B5563)),
-        ),
-      );
+    title: 'Objective',
+    child: const Text(
+      'Observe how a diode converts an AC input into a pulsating DC output, '
+      'and compare the input and output waveform measurements.',
+      style: TextStyle(height: 1.5, color: Color(0xFF4B5563)),
+    ),
+  );
 
   Widget _buildComponents() => _buildSection(
-        title: 'Components Required',
-        child: const Wrap(
-          spacing: 10,
-          runSpacing: 8,
-          children: [
-            _ComponentChip(label: 'AC source'),
-            _ComponentChip(label: 'Step-down transformer'),
-            _ComponentChip(label: 'Rectifier diode'),
-            _ComponentChip(label: 'Load resistor'),
-            _ComponentChip(label: 'Connecting wires'),
-          ],
-        ),
-      );
+    title: 'Components Required',
+    child: const Wrap(
+      spacing: 10,
+      runSpacing: 8,
+      children: [
+        _ComponentChip(label: 'AC source'),
+        _ComponentChip(label: 'Step-down transformer'),
+        _ComponentChip(label: 'Rectifier diode'),
+        _ComponentChip(label: 'Load resistor'),
+        _ComponentChip(label: 'Connecting wires'),
+      ],
+    ),
+  );
 
   Widget _buildCircuitSection() => _buildSection(
-        title: 'Circuit Diagram',
-        child: const CircuitDiagram(),
-      );
+    title: 'Circuit Diagram',
+    child: CircuitDiagram(capacitorEnabled: parameters.capacitorFilterEnabled),
+  );
 
   Widget _buildMeasurementSummary() {
-    final input = WaveformMeasurements.fromPoints(inputWaveform);
-    final output = WaveformMeasurements.fromPoints(outputWaveform);
+    final output = WaveformMeasurements.fromSimulation(
+      _simulation!,
+      parameters.resistance,
+    );
 
-    Widget measurementRow(String label, double inputValue, double outputValue) {
+    Widget measurementRow(String label, String value) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 7),
         child: Row(
           children: [
             Expanded(
               flex: 2,
-              child: Text(label, style: const TextStyle(color: Color(0xFF4B5563))),
-            ),
-            Expanded(
               child: Text(
-                '${inputValue.toStringAsFixed(2)} V',
-                textAlign: TextAlign.end,
-                style: const TextStyle(fontWeight: FontWeight.w600),
+                label,
+                style: const TextStyle(color: Color(0xFF4B5563)),
               ),
             ),
             Expanded(
               child: Text(
-                '${outputValue.toStringAsFixed(2)} V',
+                value,
                 textAlign: TextAlign.end,
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
@@ -104,116 +107,152 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
             Expanded(flex: 2, child: SizedBox()),
             Expanded(
               child: Text(
-                'Input',
+                'Simulated output',
                 textAlign: TextAlign.end,
-                style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF2563EB)),
-              ),
-            ),
-            Expanded(
-              child: Text(
-                'Output',
-                textAlign: TextAlign.end,
-                style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF2563EB)),
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF2563EB),
+                ),
               ),
             ),
           ],
         ),
         const Divider(height: 16),
-        measurementRow('Vmax', input.vMax, output.vMax),
-        measurementRow('Vmin', input.vMin, output.vMin),
-        measurementRow('Vpp', input.vPp, output.vPp),
-        measurementRow('Vrms', input.vRms, output.vRms),
+        measurementRow(
+          'Average DC (Vdc)',
+          '${output.vdc.toStringAsFixed(3)} V',
+        ),
+        measurementRow(
+          'RMS voltage (Vrms)',
+          '${output.vRms.toStringAsFixed(3)} V',
+        ),
+        measurementRow(
+          'Peak inverse voltage',
+          '${output.piv.toStringAsFixed(3)} V',
+        ),
+        measurementRow('Ripple factor', output.rippleFactor.toStringAsFixed(3)),
+        measurementRow(
+          'Rectification efficiency',
+          '${output.efficiency.toStringAsFixed(2)}%',
+        ),
+        measurementRow(
+          'Average load current (Idc)',
+          '${(output.idc * 1000).toStringAsFixed(3)} mA',
+        ),
       ],
     );
   }
 
   Widget _buildGraphSection() => Column(
-        children: [
-          _buildSection(
-            title: 'Input Waveform',
-            child: WaveformGraph(
-              points: inputWaveform,
-              title: 'Vin(t)',
-              yAxisLabel: 'Voltage (V)',
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildSection(
-            title: 'Rectified Output',
-            child: WaveformGraph(
-              points: outputWaveform,
-              title: 'Vout(t)',
-              yAxisLabel: 'Voltage (V)',
-            ),
-          ),
-        ],
-      );
+    children: [
+      _buildSection(
+        title: 'Input Waveform',
+        child: WaveformGraph(
+          points: inputWaveform,
+          title: 'Vin(t)',
+          yAxisLabel: 'Voltage (V)',
+          traceColor: const Color(0xFF43C9FF),
+        ),
+      ),
+      const SizedBox(height: 16),
+      _buildSection(
+        title: 'Rectified Output',
+        child: WaveformGraph(
+          points: outputWaveform,
+          title: 'Vout(t)',
+          yAxisLabel: 'Voltage (V)',
+          traceColor: const Color(0xFF47F2B1),
+        ),
+      ),
+    ],
+  );
 
   Widget _buildParametersPanel() => Column(
-        children: [
-          _buildSection(
-            title: 'Input Parameters',
-            child: ParameterControls(
-              parameters: parameters,
-              onChanged: _parametersChanged,
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildSection(
-            title: 'Output Measurements',
-            child: _buildMeasurementSummary(),
-          ),
-        ],
-      );
+    children: [
+      _buildSection(
+        title: 'Input Parameters',
+        child: ParameterControls(
+          parameters: parameters,
+          onChanged: _parametersChanged,
+        ),
+      ),
+      const SizedBox(height: 16),
+      _buildSection(
+        title: 'Output Measurements',
+        child: _buildMeasurementSummary(),
+      ),
+    ],
+  );
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4F6F8),
-      appBar: AppBar(
-        title: const Text(
-          'Half-Wave Rectifier Simulator',
-          style: TextStyle(fontWeight: FontWeight.w600),
+    return DefaultTabController(
+      length: 4,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF4F6F8),
+        appBar: AppBar(
+          title: const Text(
+            'Half-Wave Rectifier Simulator',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          backgroundColor: const Color(0xFF172033),
+          foregroundColor: Colors.white,
+          bottom: const TabBar(
+            isScrollable: true,
+            tabs: [
+              Tab(text: 'Simulator'),
+              Tab(text: 'Experiment'),
+              Tab(text: 'Formula Reference'),
+              Tab(text: 'Observation Table'),
+            ],
+          ),
         ),
-        backgroundColor: const Color(0xFF172033),
-        foregroundColor: Colors.white,
-      ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final isWide = constraints.maxWidth >= 1000;
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildObjective(),
-                const SizedBox(height: 16),
-                _buildComponents(),
-                const SizedBox(height: 16),
-                _buildCircuitSection(),
-                const SizedBox(height: 20),
-                if (isWide)
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(flex: 7, child: _buildGraphSection()),
-                      const SizedBox(width: 20),
-                      Expanded(flex: 3, child: _buildParametersPanel()),
-                    ],
-                  )
-                else ...[
-                  _buildGraphSection(),
-                  const SizedBox(height: 16),
-                  _buildParametersPanel(),
-                ],
-              ],
-            ),
-          );
-        },
+        body: TabBarView(
+          children: [
+            _KeepAlivePage(child: _buildSimulatorContent()),
+            const _KeepAlivePage(child: ExperimentGuide()),
+            const _KeepAlivePage(child: FormulaReferenceView()),
+            const _KeepAlivePage(child: ObservationTable()),
+          ],
+        ),
       ),
     );
   }
+
+  Widget _buildSimulatorContent() => LayoutBuilder(
+    builder: (context, constraints) {
+      final isWide = constraints.maxWidth >= 1000;
+
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildObjective(),
+            const SizedBox(height: 16),
+            _buildComponents(),
+            const SizedBox(height: 16),
+            _buildCircuitSection(),
+            const SizedBox(height: 20),
+            if (isWide)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 7, child: _buildGraphSection()),
+                  const SizedBox(width: 20),
+                  Expanded(flex: 3, child: _buildParametersPanel()),
+                ],
+              )
+            else ...[
+              _buildGraphSection(),
+              const SizedBox(height: 16),
+              _buildParametersPanel(),
+            ],
+          ],
+        ),
+      );
+    },
+  );
 
   Widget _buildSection({required String title, required Widget child}) {
     return Container(
@@ -246,6 +285,26 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
         ],
       ),
     );
+  }
+}
+
+class _KeepAlivePage extends StatefulWidget {
+  final Widget child;
+  const _KeepAlivePage({required this.child});
+
+  @override
+  State<_KeepAlivePage> createState() => _KeepAlivePageState();
+}
+
+class _KeepAlivePageState extends State<_KeepAlivePage>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }
 

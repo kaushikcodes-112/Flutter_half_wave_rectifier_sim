@@ -3,19 +3,22 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 class CircuitDiagram extends StatelessWidget {
-  const CircuitDiagram({super.key});
+  final bool capacitorEnabled;
+  const CircuitDiagram({super.key, this.capacitorEnabled = false});
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: 300,
       width: double.infinity,
-      child: CustomPaint(painter: CircuitPainter()),
+      child: CustomPaint(painter: CircuitPainter(capacitorEnabled: capacitorEnabled)),
     );
   }
 }
 
 class CircuitPainter extends CustomPainter {
+  final bool capacitorEnabled;
+  CircuitPainter({this.capacitorEnabled = false});
   final Paint wire = Paint()
     ..color = const Color(0xFF172033)
     ..strokeWidth = 2.5
@@ -95,6 +98,15 @@ class CircuitPainter extends CustomPainter {
     canvas.drawLine(Offset(r, y - 75), Offset(out - 8, y - 75), wire);
     canvas.drawLine(Offset(r, y + 75), Offset(out - 8, y + 75), wire);
 
+    if (capacitorEnabled) {
+      final cx = r + (out - r) * .55;
+      canvas.drawLine(Offset(cx, y - 75), Offset(cx, y - 10), wire);
+      canvas.drawLine(Offset(cx - 14, y - 10), Offset(cx + 14, y - 10), component);
+      canvas.drawLine(Offset(cx - 14, y + 10), Offset(cx + 14, y + 10), component);
+      canvas.drawLine(Offset(cx, y + 10), Offset(cx, y + 75), wire);
+      _label(canvas, 'C', cx + 16, y - 10);
+    }
+
     // Labels
     _label(canvas, 'AC Mains', left - 100, y + 5);
     _label(canvas, 'Vin(t)', left - 100, y + 25);
@@ -173,5 +185,6 @@ class CircuitPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant CircuitPainter oldDelegate) =>
+      oldDelegate.capacitorEnabled != capacitorEnabled;
 }

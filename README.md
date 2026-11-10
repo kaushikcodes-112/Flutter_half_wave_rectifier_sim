@@ -44,11 +44,19 @@ Install dependencies:
 flutter pub get
 ```
 
-Run the web version:
+Run the web version (uses locally bundled Flutter web resources, avoiding runtime requests to Google's font and CanvasKit CDNs):
 
 ```bash
-flutter run -d chrome
+powershell -ExecutionPolicy Bypass -File tool/run_web.ps1
 ```
+
+Build a release web bundle for hosting:
+
+```bash
+powershell -ExecutionPolicy Bypass -File tool/build_web.ps1
+```
+
+The release files are written to `build/web`. Keep the generated `canvaskit` directory with the rest of the web bundle when deploying.
 
 ## Run Tests
 
